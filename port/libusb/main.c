@@ -234,13 +234,14 @@ void hal_led_toggle(void){
     printf("LED State %u\n", led_state);
 }
 
-static char short_options[] = "hu:l:r";
+static char short_options[] = "hu:l:rv";
 
 static struct option long_options[] = {
     {"help",        no_argument,        NULL,   'h'},
     {"logfile",    required_argument,  NULL,   'l'},
     {"reset-tlv",    no_argument,       NULL,   'r'},
     {"usbpath",    required_argument,  NULL,   'u'},
+    {"verbose", no_argument, NULL, 'v' },
     {0, 0, 0, 0}
 };
 
@@ -258,6 +259,18 @@ static char *option_arg_name[] = {
     "USBPATH",
 };
 
+static void my_log_message(int log_level, const char * format, va_list argptr) {
+
+  char buf[256];
+
+  (void)log_level;
+
+  vsnprintf(buf, sizeof(buf), format, argptr);
+
+  fprintf(stdout, "%s\n", buf);
+
+}
+
 static void usage(const char *name){
     unsigned int i;
     printf( "usage:\n\t%s [options]\n", name );
@@ -274,6 +287,7 @@ int main(int argc, const char * argv[]){
     int usb_path_len = 0;
     const char * usb_path_string = NULL;
     const char * log_file_path = NULL;
+    uint32_t verbose = 0;
 
     // parse command line parameters
     while(true){
@@ -285,6 +299,10 @@ int main(int argc, const char * argv[]){
             break;
         }
         switch (c) {
+            case 'v': 
+                verbose = 1;
+                break;
+            
             case 'u':
                 usb_path_string = optarg;
                 break;
@@ -339,7 +357,12 @@ int main(int argc, const char * argv[]){
 
     hci_dump_posix_fs_open(log_file_path, HCI_DUMP_PACKETLOGGER);
     const hci_dump_t * hci_dump_impl = hci_dump_posix_fs_get_instance();
-    hci_dump_init(hci_dump_impl);
+    hci_dump_t MyDump;
+    memcpy(& MyDump, hci_dump_impl, sizeof(hci_dump_t));
+    if (verbose) {
+        MyDump.log_message = my_log_message;
+    }
+    hci_dump_init(& MyDump);
     printf("Packet Log: %s\n", log_file_path);
 
     // init HCI
